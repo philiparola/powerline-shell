@@ -3,6 +3,7 @@ from ..utils import ThreadedSegment, RepoStats, get_subprocess_env
 
 
 def _get_svn_revision():
+    revision = ""
     p = subprocess.Popen(["svn", "info", "--xml"],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE,
@@ -43,6 +44,8 @@ def build_stats():
     pdata = p.communicate()
     if p.returncode != 0 or pdata[1][:22] == b'svn: warning: W155007:':
         return None, None
+    elif pdata[1][:22] == b'svn: warning: W155010:':
+        return RepoStats(), "ignored"
     status = _get_svn_status(pdata)
     stats = parse_svn_stats(status)
     revision = _get_svn_revision()
@@ -66,5 +69,10 @@ class Segment(ThreadedSegment):
             symbol = " " + RepoStats().symbols["svn"]
         else:
             symbol = ""
-        self.powerline.append(symbol + " rev " + self.revision + " ", fg, bg)
+        if self.revision != "ignored":
+            self.powerline.append(symbol + " rev " + self.revision + " ", fg, bg)
+        else:
+            bg = self.powerline.theme.REPO_DIRTY_BG
+            fg = self.powerline.theme.REPO_DIRTY_FG
+            self.powerline.append(symbol + " ignored", fg, bg)
         self.stats.add_to_powerline(self.powerline)
